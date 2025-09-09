@@ -230,7 +230,7 @@ public class ISPOutputRecipeLogic extends RecipeLogic {
         var ispResult = currentRecipe.outputISP.getStack(simulate ? currentItemsSimulated.get(0) : currentItems.get(0));
         List<ItemStack> allOutputs = new ArrayList<>(currentRecipe.secondaryOutputs);
         allOutputs.add(0, ispResult);
-        // Logic to allow food items with similar creation dates to stack properly
+        // Logic to allow food items with different creation dates to stack properly
         for (IRecipeHandler<?> outputHandler : outputHandlers) {
             if (outputHandler instanceof NotifiableItemStackHandler stackHandler) {
                 for (int index = 0; index < stackHandler.getSlots(); index++) {
@@ -242,12 +242,12 @@ public class ISPOutputRecipeLogic extends RecipeLogic {
                         if (inSlot.isEmpty()) {
                             itemStack = stackHandler.insertItemInternal(index, itemStack, simulate);
                         } else if (FoodCapability.has(itemStack) && FoodCapability.has(inSlot) && FoodCapability.areStacksStackableExceptCreationDate(itemStack, inSlot)) {
-                            var date1 = FoodCapability.get(inSlot).getCreationDate();
-                            var date2 = FoodCapability.get(itemStack).getCreationDate();
-                            if (FoodCapability.getRoundedCreationDate(date1) == FoodCapability.getRoundedCreationDate(date2)) {
+                            var date1 = FoodCapability.get(inSlot).getCreationDate();    
                                 FoodCapability.get(itemStack).setCreationDate(date1);
                                 itemStack = stackHandler.insertItemInternal(index, itemStack, simulate);
-                            }
+                        }
+                        else {
+                            itemStack = stackHandler.insertItemInternal(index, itemStack, simulate);
                         }
                         if (itemStack.isEmpty()) iter.remove();
                     }
