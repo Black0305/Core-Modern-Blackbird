@@ -218,45 +218,48 @@ public class ISPOutputRecipeLogic extends RecipeLogic {
 
     private boolean handleOutput(TFCRecipeData currentRecipe, boolean simulate) {
 
-        if (currentRecipe.outputISP == null) return true;
+    if (currentRecipe.outputISP == null) return true;
 
-        if ((simulate && currentItemsSimulated.isEmpty()) || (!simulate && currentItems.isEmpty())) return false;
+    if ((simulate && currentItemsSimulated.isEmpty()) || (!simulate && currentItems.isEmpty())) return false;
 
-        List<IRecipeHandler<?>> outputHandlers = new ArrayList<>();
-        getCapHolder().getCapabilitiesForIO(IO.OUT).forEach(v -> outputHandlers.addAll(v.getCapability(ItemRecipeCapability.CAP)));
-        outputHandlers.sort(IRecipeHandler.ENTRY_COMPARATOR);
+    List<IRecipeHandler<?>> outputHandlers = new ArrayList<>();
+    getCapHolder().getCapabilitiesForIO(IO.OUT).forEach(v -> outputHandlers.addAll(v.getCapability(ItemRecipeCapability.CAP)));
+    outputHandlers.sort(IRecipeHandler.ENTRY_COMPARATOR);
 
-        RecipeHelpers.setCraftingInput(new SimulatedCraftingContainer(simulate ? currentItemsSimulated : currentItems));
-        var ispResult = currentRecipe.outputISP.getStack(simulate ? currentItemsSimulated.get(0) : currentItems.get(0));
-        List<ItemStack> allOutputs = new ArrayList<>(currentRecipe.secondaryOutputs);
-        allOutputs.add(0, ispResult);
-        // Logic to allow food items with similar creation dates to stack properly
-        for (IRecipeHandler<?> outputHandler : outputHandlers) {
-            if (outputHandler instanceof NotifiableItemStackHandler stackHandler) {
-                for (int index = 0; index < stackHandler.getSlots(); index++) {
-                    var iter = allOutputs.iterator();
-                    while (iter.hasNext()) {
-                        var itemStack = iter.next();
-                        if (!stackHandler.isItemValid(index, itemStack)) continue;
-                        ItemStack inSlot = stackHandler.getStackInSlot(index);
-                        if (inSlot.isEmpty()) {
-                            itemStack = stackHandler.insertItemInternal(index, itemStack, simulate);
-                        } else if (FoodCapability.has(itemStack) && FoodCapability.has(inSlot) && FoodCapability.areStacksStackableExceptCreationDate(itemStack, inSlot)) {
-                            var date1 = FoodCapability.get(inSlot).getCreationDate();
-                            var date2 = FoodCapability.get(itemStack).getCreationDate();
-                            if (FoodCapability.getRoundedCreationDate(date1) == FoodCapability.getRoundedCreationDate(date2)) {
-                                FoodCapability.get(itemStack).setCreationDate(date1);
-                                itemStack = stackHandler.insertItemInternal(index, itemStack, simulate);
-                            }
-                        }
-                        if (itemStack.isEmpty()) iter.remove();
+    RecipeHelpers.setCraftingInput(new SimulatedCraftingContainer(simulate ? currentItemsSimulated : currentItems));
+    var ispResult = currentRecipe.outputISP.getStack(simulate ? currentItemsSimulated.get(0) : currentItems.get(0));
+    List<ItemStack> allOutputs = new ArrayList<>(currentRecipe.secondaryOutputs);
+    allOutputs.add(0, ispResult);
+    // Logic to allow food items with similar creation dates to stack properly
+    for (IRecipeHandler<?> outputHandler : outputHandlers) {
+        if (outputHandler instanceof NotifiableItemStackHandler stackHandler) {
+            for (int index = 0; index < stackHandler.getSlots(); index++) {
+                var iter = allOutputs.iterator();
+                while (iter.hasNext()) {
+                    var itemStack = iter.next();
+                    if (!stackHandler.isItemValid(index, itemStack)) continue;
+                    ItemStack inSlot = stackHandler.getStackInSlot(index);
+                    if (inSlot.isEmpty()) {
+                        itemStack = stackHandler.insertItemInternal(index, itemStack, simulate);
+                    } else if (FoodCapability.has(itemStack) && FoodCapability.has(inSlot)
+                            && FoodCapability.areStacksStackableExceptCreationDate(itemStack, inSlot)) {
+                        // FIX: Immer das CreationDate angleichen, wenn bis auf das Datum stapelbar
+                        var date1 = FoodCapability.get(inSlot).getCreationDate();
+                        FoodCapability.get(itemStack).setCreationDate(date1);
+                        itemStack = stackHandler.insertItemInternal(index, itemStack, simulate);
+                    } else {
+                        // FIX: Erlaube normales Zusammenführen in bereits belegten Slots
+                        itemStack = stackHandler.insertItemInternal(index, itemStack, simulate);
                     }
-                    if (allOutputs.isEmpty()) return true;
+                    if (itemStack.isEmpty()) iter.remove();
                 }
-            } else {
-                TFGCore.LOGGER.warn("Unexpected output capability proxy: Expected NotifiableItemStackHandler, actual: {}", outputHandler.getClass());
+                if (allOutputs.isEmpty()) return true;
             }
+        } else {
+            TFGCore.LOGGER.warn("Unexpected output capability proxy: Expected NotifiableItemStackHandler, actual: {}", outputHandler.getClass());
         }
-        return false;
     }
+    return false;
+}
+
 }
