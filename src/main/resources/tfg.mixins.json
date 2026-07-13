@@ -335,6 +335,7 @@
         "client.ftb.QuestScreenMixin",
         "client.gtceu.ISurfaceRockRendererAccessor",
         "client.ldlib.ModularUIGuiContainerMixin",
+        "client.minecraft.AbstractContainerMenuMixin",
         "client.minecraft.CreateWorldScreenMixin",
         "client.minecraft.CustomHeadLayerMixin",
         "client.minecraft.GameTabMixin",
